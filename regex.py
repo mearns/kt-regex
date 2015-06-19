@@ -55,9 +55,9 @@ class State(object):
 
             else:
                 ostream.write(line)
-                prefix = ' |-->'
+                prefix = '|-->'
                 oindent = indent
-                indent = indent + ' '*len(prefix)
+                indent = indent + '|' + (' '*(len(prefix)-1))
                 for op in self.outputs:
                     ostream.write('\n')
                     ostream.write(oindent + prefix)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     import sys
 
 
-    frag = postfix_to_nfa('ab.c|+e.')
+    frag = postfix_to_nfa('ab.c|+e.fgh..|')
 
     frag.enter.print_chain(sys.stdout)
     
