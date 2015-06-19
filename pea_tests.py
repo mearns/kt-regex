@@ -4,6 +4,7 @@
 import regex
 
 from pea import *
+from nose.tools import *
 
 @step
 def postfix_pattern_is(pattern):
@@ -23,6 +24,26 @@ def pattern_matches():
 def pattern_does_not_match():
     state = world.nfa.enter
     world.assertFalse(state.match(world.input))
+
+
+@step
+def infix_input_is(infix):
+    world.infix = infix
+
+@step
+def postfix_output_is(postfix):
+    eq_(regex.infix_to_postfix(world.infix), postfix)
+
+class TestPostfixParser(TestCase):
+
+    def test_alternate(self):
+        When.infix_input_is('a|b')
+        Then.postfix_output_is('ab|')
+
+    def test_concat(self):
+        When.infix_input_is('ab')
+        Then.postfix_output_is('ab.')
+
 
 class TestPostfix(TestCase):
 

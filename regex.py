@@ -255,6 +255,27 @@ class Fragment(object):
         self.outputs = set(enter.outputs)
 
 
+
+def infix_to_postfix(infix):
+
+    oqueue = []
+    stack = []
+
+    for c in infix:
+        if c in ('|',):
+            stack.append(c)
+        else:
+            if oqueue:
+                oqueue.extend((c, '.'))
+            else:
+                oqueue.append(c)
+
+    while stack:
+        oqueue.append(stack.pop())
+
+    return ''.join(oqueue)
+
+
 def postfix_to_nfa(postfix):
     stack = []
     for c in postfix:
