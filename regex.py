@@ -55,6 +55,10 @@ class State(object):
         line). The children of the referenced node are not pritned again, since this
         can lead to infinite recursion.
         """
+        if self.is_match():
+            ostream.write('M')
+            return
+
         if already_printed is None:
             already_printed = {}
 
@@ -94,6 +98,9 @@ class State(object):
                     if next is not None:
                         next.print_chain(ostream, indent, already_printed)
 
+    def is_match(self):
+        return len(self.outputs) == 0 and self.trigger is None
+
     @property
     def trigger(self):
         """
@@ -118,6 +125,18 @@ class State(object):
     def __repr__(self):
         return 'State#%s(%r)' % (id(self), self._trigger)
 
+    def auto_expand(self):
+        if self.trigger is None:
+            expanded = set()
+            for op in self._outputs:
+                next = op.next
+                if next is not None:
+                    expanded = expanded.union(next.auto_expand())
+            return expanded
+        else:
+            #Not auto-triggered, so return self
+            return set((self,))
+
     def advance(self, char=None):
         """
         Advance to the next state or states, given that ``char`` is the next character.
@@ -125,21 +144,26 @@ class State(object):
         empty set indicates that the state didn't pass. Returning ``True`` indicates
         a match has occurred at this state.
         """
-        print 'Checking %r against %r' % (char, self.trigger)
-        if self.trigger is None or self.trigger == char:
-            #This state passed
-            if len(self._outputs):
-                #Has outputs, so those states become active.
-                next_states = set(op.next for op in self._outputs if op.next is not None)
-                print 'Accepted. Returning %r' % (next_states,)
-                return next_states
-            else:
-                #No outputs, this is a match state.
-                print 'Accepted. Returning True'
-                return True
+        next_states = set()
+        current_states = self.auto_expand()
+        print 'Expanded to %r' % (current_states,)
+        for state in current_states:
+            print 'Checking %r against %r' % (char, state.trigger)
+            assert (state.trigger is not None)
+            if state.trigger == char:
+                #This state passed
+                print 'Accepted.'
+                if len(state.outputs):
+                    #Has outputs, so those states become active.
+                    new_state = set((op.next for op in state.outputs if op.next is not None))
+                    print 'New states: %r' % (new_state,)
+                    next_states = next_states.union(new_state)
+                else:
+                    #No outputs, this is a match state.
+                    print 'Accepted. Returning True'
+                    return True
 
-        #No match in this state. Terminate.
-        return set()
+        return next_states
 
 
     def match(self, string):
@@ -176,7 +200,7 @@ class State(object):
             active_states = new_states
 
         #No match
-        return false
+        return False
 
 
 
@@ -339,7 +363,7 @@ if __name__ == '__main__':
     import sys
 
 
-    frag = postfix_to_nfa('a')
+    frag = postfix_to_nfa('ab|')
     pattern = frag.enter
 
     frag.enter.print_chain(sys.stdout)
