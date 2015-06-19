@@ -36,7 +36,14 @@ class State(object):
     def Match():
         return State(None)
 
-    def print_chain(self, ostream, indent='', already_printed = None):
+
+    def print_chain(self, ostream):
+        self._print_chain_internal(ostream, '', {})
+        ostream.write('\n')
+        
+
+
+    def _print_chain_internal(self, ostream, indent, already_printed):
         """
         Pretty prints the graph of states, starting with this one.
         Each node in the graph is printed as a unique numeric identifier, which
@@ -58,9 +65,6 @@ class State(object):
         if self.is_match():
             ostream.write('M')
             return
-
-        if already_printed is None:
-            already_printed = {}
 
         repeat = self in already_printed
         if repeat:
@@ -84,7 +88,7 @@ class State(object):
                 indent += ' '*len(line)
                 next = self.outputs[0].next
                 if next is not None:
-                    next.print_chain(ostream, indent, already_printed)
+                    next._print_chain_internal(ostream, indent, already_printed)
 
             else:
                 ostream.write(line)
@@ -96,7 +100,7 @@ class State(object):
                     ostream.write(oindent + prefix)
                     next = op.next
                     if next is not None:
-                        next.print_chain(ostream, indent, already_printed)
+                        next._print_chain_internal(ostream, indent, already_printed)
 
     def is_match(self):
         return len(self.outputs) == 0 and self.trigger is None
@@ -156,19 +160,14 @@ class State(object):
 
         next_states = set()
         current_states = self.auto_expand()
-        print 'Expanded to %r' % (current_states,)
         for state in current_states:
-            print 'Checking %r against %r' % (char, state.trigger)
             if state.is_match():
-                print 'Matched'
                 return True
             else:
-                print 'Accepted.'
                 assert(state.trigger is not None)
                 if state.trigger == char:
                     #Has outputs, so those states become active.
                     new_state = set((op.next for op in state.outputs if op.next is not None))
-                    print 'New states: %r' % (new_state,)
                     next_states = next_states.union(new_state)
 
         return next_states
@@ -181,7 +180,6 @@ class State(object):
             new_states = set()
             for state in active_states:
                 next_states = state.advance(c)
-                print "Advanced to: %r" % (next_states,)
                 if next_states is True:
                     #Found a match
                     return True
@@ -189,7 +187,6 @@ class State(object):
                     new_states = new_states.union(next_states)
                     
             #None of the current states matched.
-            print "New states: %r" % (new_states,)
             if len(new_states) == 0:
                 break
 
@@ -375,7 +372,6 @@ if __name__ == '__main__':
     pattern = frag.enter
 
     frag.enter.print_chain(sys.stdout)
-    print ''
 
     print pattern.match("b")
     
