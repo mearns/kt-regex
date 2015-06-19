@@ -18,9 +18,12 @@ class State(object):
         def next(self):
             return self._next
 
-    def __init__(self, char = None, num_outputs):
+    def __init__(self, char = None, *nextStates):
         self.char = char
-        self._outputs = tuple(Output(self) for i in xrange(num_outputs))
+        if len(nextStates):
+            self._outputs = tuple(Output(self, state) for state in nextStates)
+        else:
+            self._outputs = tuple(Output(self),)
 
     @property
     def outputs(self):
@@ -40,7 +43,18 @@ class Fragment(object):
         self._enter = enter
         self._outputs = enter.outputs
 
-    def append(self, state):
+    @property
+    def enter(self):
+        return self._enter
+
+    def append(self, fragment):
+        """
+        Adds the given fragment as a follow on to this one, so that all the dangling
+        outputs of this fragment point to the enter state of the given frament, and the
+        outputs of that fragment become the outputs of this one, so that this fragment
+        effectively consumes the given one.
+        """
+        state = fragment.enter
         for op in self._outputs:
             op.set(state)
         self._outputs = state.outputs
@@ -55,14 +69,26 @@ def postfixToNfa(postfix):
             f2 = stack.pop()
             f1 = stack.pop()
             f1.append(f2)
+            stack.push(f1)
 
         elif c == '|':
             #XXX
+            f2 = stack.pop();
+            f1 = stack.pop();
+            state = State(None)
+            frag = Fragment(state)
+
+            outputs = state.outputs
+            outputs[0].set(f1.enter)
+            outputs[1].set(f2.enter)
+
+            stack.push(frag)
+
 
         else:
-            state = State(c, 1)
+            state = State(c)
             frag = Fragment(state)
-            stat.push(frag)
+            stack.push(frag)
 
 
 
