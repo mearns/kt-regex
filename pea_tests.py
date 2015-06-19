@@ -40,13 +40,33 @@ class TestPostfix(TestCase):
 
     def test_literal(self):
         self.validate_matches('a', 'a')
+        self.validate_not_matches('a', 'b')
+        self.validate_not_matches('a', '')
 
     def test_concat(self):
         self.validate_matches('ab.', 'ab')
+        self.validate_matches('ab.c.', 'abc')
+        self.validate_matches('abc..', 'abc')
+        self.validate_not_matches('abc..', 'ab')
 
     def test_alternate(self):
         self.validate_matches('ab|', 'a')
         self.validate_matches('ab|', 'b')
+        self.validate_matches('ab.cd.|', 'ab')
+        self.validate_matches('ab.cd.|', 'cd')
+        self.validate_not_matches('ab.cd.|', 'a')
+        self.validate_not_matches('ab.cd.|', 'b')
+        self.validate_not_matches('ab.cd.|', 'c')
+        self.validate_not_matches('ab.cd.|', 'd')
+        self.validate_not_matches('ab.cd.|', 'ac')
+        self.validate_not_matches('ab.cd.|', 'bd')
+        self.validate_matches('abcd|||', 'a')
+        self.validate_matches('abcd|||', 'b')
+        self.validate_matches('abcd|||', 'c')
+        self.validate_matches('abcd|||', 'd')
+        self.validate_not_matches('abcd|||', '')
+        self.validate_not_matches('abcd|||', 'e')
+        self.validate_not_matches('abcd|||', 'ea')
 
     def test_zero_or_one(self):
         self.validate_matches('a?', 'a')

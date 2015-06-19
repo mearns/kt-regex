@@ -42,7 +42,6 @@ class State(object):
         ostream.write('\n')
         
 
-
     def _print_chain_internal(self, ostream, indent, already_printed):
         """
         Pretty prints the graph of states, starting with this one.
