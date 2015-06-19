@@ -126,6 +126,13 @@ class State(object):
         return 'State#%s(%r)' % (id(self), self._trigger)
 
     def auto_expand(self):
+        """
+        Returns the nearest non-auto nodes, at or below this level. If this is
+        not an auto-trigger state, returns a set containing only itself.
+
+        Otherwise, follows every possible branch and sub-branch from this state until
+        each path ends in a non-auto state, and returns that collection.
+        """
         if self.trigger is None:
             expanded = set()
             for op in self._outputs:
@@ -144,6 +151,9 @@ class State(object):
         empty set indicates that the state didn't pass. Returning ``True`` indicates
         a match has occurred at this state.
         """
+        if self.is_match():
+            return True
+
         next_states = set()
         current_states = self.auto_expand()
         print 'Expanded to %r' % (current_states,)
@@ -153,15 +163,13 @@ class State(object):
             if state.trigger == char:
                 #This state passed
                 print 'Accepted.'
-                if len(state.outputs):
+                if state.is_match():
+                    return True
+                else:
                     #Has outputs, so those states become active.
                     new_state = set((op.next for op in state.outputs if op.next is not None))
                     print 'New states: %r' % (new_state,)
                     next_states = next_states.union(new_state)
-                else:
-                    #No outputs, this is a match state.
-                    print 'Accepted. Returning True'
-                    return True
 
         return next_states
 
@@ -363,13 +371,13 @@ if __name__ == '__main__':
     import sys
 
 
-    frag = postfix_to_nfa('ab|')
+    frag = postfix_to_nfa('ab.ef.|gh..')
     pattern = frag.enter
 
     frag.enter.print_chain(sys.stdout)
     print ''
 
-    print pattern.match("a")
+    print pattern.match("efgh")
     
 
 
