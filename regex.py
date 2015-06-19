@@ -29,8 +29,11 @@ class State(object):
         self._trigger = trigger
         if len(nextStates):
             self._outputs = tuple(self.Output(self, state) for state in nextStates)
+            self._results = set(self._outputs)
         else:
-            self._outputs = tuple((self.Output(self),))
+            self._outputs = tuple()
+            self._results = True
+
 
     def print_chain(self, ostream, indent='', already_printed = None):
         """
@@ -114,11 +117,39 @@ class State(object):
     def advance(self, char):
         """
         Advance to the next state or states, given that ``char`` is the next character.
-        Return a collection of all states that are now active as a result. Returning an
-        empty set indicates that there is no transition out of this state for the given
-        ``char``. Returning None indicates that we reached a terminal match state.
+        Return a set of all states that are now active as a result. Returning an
+        empty set indicates that the state didn't pass. Returning ``True`` indicates
+        a match has occurred at this state.
         """
-        raise NotImplementedError()
+        if self.trigger is None or self.trigger == char:
+            #This state passed
+            return this._results
+
+        #No match in this state. Terminate.
+        return set()
+
+
+    def match(self, string):
+        active_states = set((self,))
+
+        for c in string:
+            new_states = set()
+            for state in active_states:
+                next_states = state.advance(c)
+                if next_states is True:
+                    #Found a match
+                    return True
+                else:
+                    new_states = new_states.union(next_states)
+                    
+            #None of the current states matched.
+            if len(new_states) == 0:
+                break
+
+        #No match
+        return false
+
+
 
     class Output(object):
         """
@@ -254,7 +285,7 @@ def postfix_to_nfa(postfix):
 
         #Literal
         else:
-            state = State(c)
+            state = State(c, None)
             frag = Fragment(state)
             stack.append(frag)
 
