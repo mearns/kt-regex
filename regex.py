@@ -133,7 +133,7 @@ class State(object):
         Otherwise, follows every possible branch and sub-branch from this state until
         each path ends in a non-auto state, and returns that collection.
         """
-        if self.trigger is None:
+        if self.trigger is None and len(self.outputs):
             expanded = set()
             for op in self._outputs:
                 next = op.next
@@ -159,13 +159,13 @@ class State(object):
         print 'Expanded to %r' % (current_states,)
         for state in current_states:
             print 'Checking %r against %r' % (char, state.trigger)
-            assert (state.trigger is not None)
-            if state.trigger == char:
-                #This state passed
+            if state.is_match():
+                print 'Matched'
+                return True
+            else:
                 print 'Accepted.'
-                if state.is_match():
-                    return True
-                else:
+                assert(state.trigger is not None)
+                if state.trigger == char:
                     #Has outputs, so those states become active.
                     new_state = set((op.next for op in state.outputs if op.next is not None))
                     print 'New states: %r' % (new_state,)
@@ -371,13 +371,13 @@ if __name__ == '__main__':
     import sys
 
 
-    frag = postfix_to_nfa('ab.ef.|gh..')
+    frag = postfix_to_nfa('a?')
     pattern = frag.enter
 
     frag.enter.print_chain(sys.stdout)
     print ''
 
-    print pattern.match("efgh")
+    print pattern.match("b")
     
 
 
