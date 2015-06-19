@@ -5,27 +5,52 @@ import abc
 
 
 class State(object):
+    """
+    Represents a state in a Nondeterministic Finite Automaton (NFA). A state has
+    a `trigger`, which can be thougt of as an acceptance test. If the incoming sequence
+    matches the trigger, then the state advances to the next state or states.
+    A state can also be auto-triggered, which is specified by having the trigger set to ``None``.
+    An auto-triggered state automatically advances to the next state(s), regardless of input.
 
-    class Output(object):
-        def __init__(self, state, next=None):
-            self._state = state
-            self._next = next
+    A state also has zero or more `outputs`. Outputs are kind of like sockets that another
+    state can be plugged into, forming a directed graph of states.
+    """
 
-        def set(self, state):
-            self._next = state
+    def __init__(self, trigger = None, *nextStates):
+        """
+        :param trigger: The trigger for this state, or ``None`` for an auto-triggered state.
 
-        @property
-        def next(self):
-            return self._next
-
-    def __init__(self, char = None, *nextStates):
-        self.char = char
+        :param \*nextStates:    Any additional arguments are taken as the next states, and are plugged
+            into `outputs` for the created state. The outputs are set at init time, so you cannot
+            add or remove outputs afterwards, but you can reassign them (each output is actually
+            an `Output` object, so you can use the `Output.set` method). To reserve an output without
+            specifying the next state, just pass ``None``. This creates a "dangling" output.
+        """
+        self._trigger = trigger
         if len(nextStates):
             self._outputs = tuple(self.Output(self, state) for state in nextStates)
         else:
             self._outputs = tuple((self.Output(self),))
 
     def print_chain(self, ostream, indent='', already_printed = None):
+        """
+        Pretty prints the graph of states, starting with this one.
+        Each node in the graph is printed as a unique numeric identifier, which
+        start with 1 and increment for each node visited (left to right, top bottom).
+        Note that numeric IDs are unique to the particular printing of the graph,
+        they may change if the graph changes or a different subgraph is printed.
+
+        Nodes are printed with their numeric IDs, followed by their trigger in parenthesis.
+        An empty pair of parens means an automatic trigger.
+
+        Transitions are printed as arrows leading from the node to the next node(s).
+
+        Cycles are detected and printed as a node reference. This simply prints the
+        node again, but with a ``*`` after the nodeid, indicating that the node already
+        exists somewhere in the graph (previously on the same line, or in on a previous
+        line). The children of the referenced node are not pritned again, since this
+        can lead to infinite recursion.
+        """
         if already_printed is None:
             already_printed = {}
 
@@ -36,10 +61,10 @@ class State(object):
             nodeid = already_printed[self] = len(already_printed)+1
 
         line = ''
-        if self.char is None:
+        if self.trigger is None:
             line += '%s( )' % (nodeid,)
         else:
-            line += ('%s(%r)' % (nodeid, self.char))
+            line += ('%s(%r)' % (nodeid, self.trigger))
 
         if repeat:
             ostream.write(line)
@@ -65,9 +90,25 @@ class State(object):
                     if next is not None:
                         next.print_chain(ostream, indent, already_printed)
 
+    @property
+    def trigger(self):
+        """
+        The trigger acts as an acceptance test for the state.
+        """
+        return self._trigger
 
     @property
     def outputs(self):
+        """
+        A tuple of the outputs from this state. Each element in the tuple is an `Output`
+        object which can be assigned at any time to point to any state in order to create
+        the NDA graph.
+
+        The tuple itself is created at initialization and fixed, so the number of outputs is
+        locked in, even though they can be reassigned. An output with no state assigned to it
+        (i.e., ``None`` assigned) repersents a "dangling" output which is generally used for
+        chaining `Fragment` objects.
+        """
         return self._outputs
 
     def advance(self, char):
@@ -78,6 +119,38 @@ class State(object):
         ``char``. Returning None indicates that we reached a terminal match state.
         """
         raise NotImplementedError()
+
+    class Output(object):
+        """
+        Represents one output slot from a state. The output slots for a state are created
+        at initialization, but the slots can be assigned to at state at any time to connect
+        states together in the NFA graph.
+        """
+        def __init__(self, state, next=None):
+            self._state = state
+            self._next = next
+
+        def set(self, state):
+            """
+            Assign the next state for this output.
+            """
+            self._next = state
+
+        @property
+        def next(self):
+            """
+            The assigned next state for this output. ``None`` if the output is unassigned,
+            termed a "dangling" output.
+            """
+            return self._next
+
+        def dangling(self):
+            """
+            Returns ``True`` if and only if the `next` state is assigned as ``None``,
+            ``False`` otherwise.
+            """
+            return self._next is None
+
 
 class Fragment(object):
     """
@@ -92,19 +165,6 @@ class Fragment(object):
     def __init__(self, enter):
         self.enter = enter
         self.outputs = set(enter.outputs)
-
-    def append(self, fragment):
-        """
-        Adds the given fragment as a follow on to this one, so that all the dangling
-        outputs of this fragment point to the enter state of the given frament, and the
-        outputs of that fragment become the outputs of this one, so that this fragment
-        effectively consumes the given one.
-        """
-        state = fragment.enter
-        for op in self._outputs:
-            op.set(state)
-        self._outputs = state.outputs
-        
 
 
 def postfix_to_nfa(postfix):
