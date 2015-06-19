@@ -29,11 +29,12 @@ class State(object):
         self._trigger = trigger
         if len(nextStates):
             self._outputs = tuple(self.Output(self, state) for state in nextStates)
-            self._results = set(self._outputs)
         else:
             self._outputs = tuple()
-            self._results = True
 
+    @staticmethod
+    def Match():
+        return State(None)
 
     def print_chain(self, ostream, indent='', already_printed = None):
         """
@@ -114,16 +115,28 @@ class State(object):
         """
         return self._outputs
 
-    def advance(self, char):
+    def __repr__(self):
+        return 'State#%s(%r)' % (id(self), self._trigger)
+
+    def advance(self, char=None):
         """
         Advance to the next state or states, given that ``char`` is the next character.
         Return a set of all states that are now active as a result. Returning an
         empty set indicates that the state didn't pass. Returning ``True`` indicates
         a match has occurred at this state.
         """
+        print 'Checking %r against %r' % (char, self.trigger)
         if self.trigger is None or self.trigger == char:
             #This state passed
-            return this._results
+            if len(self._outputs):
+                #Has outputs, so those states become active.
+                next_states = set(op.next for op in self._outputs if op.next is not None)
+                print 'Accepted. Returning %r' % (next_states,)
+                return next_states
+            else:
+                #No outputs, this is a match state.
+                print 'Accepted. Returning True'
+                return True
 
         #No match in this state. Terminate.
         return set()
@@ -136,6 +149,7 @@ class State(object):
             new_states = set()
             for state in active_states:
                 next_states = state.advance(c)
+                print "Advanced to: %r" % (next_states,)
                 if next_states is True:
                     #Found a match
                     return True
@@ -143,8 +157,23 @@ class State(object):
                     new_states = new_states.union(next_states)
                     
             #None of the current states matched.
+            print "New states: %r" % (new_states,)
             if len(new_states) == 0:
                 break
+
+            active_states = new_states;
+
+        #If any states are auto-advance, we need to let them go as well.
+        while active_states:
+            new_states = set()
+            for state in active_states:
+                next_states = state.advance()
+                if next_states is True:
+                    return True
+                else:
+                    new_states = new_states.union(next_states)
+
+            active_states = new_states
 
         #No match
         return false
@@ -292,7 +321,11 @@ def postfix_to_nfa(postfix):
 
     stack_length = len(stack)
     if stack_length == 1:
-        return stack[0]
+        nfa = stack[0]
+        match = State.Match()
+        for op in nfa.outputs:
+            op.set(match)
+        return nfa
 
     elif stack_length > 1:
         raise Exception('Invalid expression, multiple fragments left on the stack.')
@@ -306,9 +339,13 @@ if __name__ == '__main__':
     import sys
 
 
-    frag = postfix_to_nfa('ab.c|+e.fgh..|')
+    frag = postfix_to_nfa('a')
+    pattern = frag.enter
 
     frag.enter.print_chain(sys.stdout)
+    print ''
+
+    print pattern.match("a")
     
 
 
