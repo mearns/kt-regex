@@ -4,38 +4,32 @@
 import abc
 
 
+class Context(object):
+    def __init__(self):
+        pass
+
 class State(object):
     """
-    Represents a state in a Nondeterministic Finite Automaton (NFA). A state has
-    a `trigger`, which can be thougt of as an acceptance test. If the incoming sequence
-    matches the trigger, then the state advances to the next state or states.
-    A state can also be auto-triggered, which is specified by having the trigger set to ``None``.
-    An auto-triggered state automatically advances to the next state(s), regardless of input.
+    Represents a state in a Nondeterministic Finite Automaton (NFA).
 
-    A state also has zero or more `outputs`. Outputs are kind of like sockets that another
-    state can be plugged into, forming a directed graph of states.
+    A state has a number of outputs leading to different states.
     """
 
-    def __init__(self, trigger = None, *nextStates):
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def advance(self, ctx):
         """
-        :param trigger: The trigger for this state, or ``None`` for an auto-triggered state.
+        Advance through this active state to all appropriate subsequent states.
 
-        :param \*nextStates:    Any additional arguments are taken as the next states, and are plugged
-            into `outputs` for the created state. The outputs are set at init time, so you cannot
-            add or remove outputs afterwards, but you can reassign them (each output is actually
-            an `Output` object, so you can use the `Output.set` method). To reserve an output without
-            specifying the next state, just pass ``None``. This creates a "dangling" output.
+        Return an iterable over new contexts, one for each resulting activated
+        state. An empty iterable indicates that there are no subsequent states,
+        meaning no match.
+
+        If any of the resulting states are matches, the context should indicate
+        this.
         """
-        self._trigger = trigger
-        if len(nextStates):
-            self._outputs = tuple(self.Output(self, state) for state in nextStates)
-        else:
-            self._outputs = tuple()
-
-    @staticmethod
-    def Match():
-        return State(None)
-
+        pass
 
     def print_chain(self, ostream):
         self._print_chain_internal(ostream, '', {})
@@ -100,16 +94,6 @@ class State(object):
                     next = op.next
                     if next is not None:
                         next._print_chain_internal(ostream, indent, already_printed)
-
-    def is_match(self):
-        return len(self.outputs) == 0 and self.trigger is None
-
-    @property
-    def trigger(self):
-        """
-        The trigger acts as an acceptance test for the state.
-        """
-        return self._trigger
 
     @property
     def outputs(self):
